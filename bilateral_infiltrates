@@ -1,0 +1,23 @@
+#Bilateral infiltrates is one of the requirements for ARDS according to Berlin definition 
+#Parsing the data 
+DROP TABLE IF EXISTS `ync-capstones.SRP.notes_bilateral_infiltrates`;
+CREATE TABLE `ync-capstones.SRP.notes_bilateral_infiltrates` AS
+ with notes as(
+SELECT
+  charttime,hadm_id,subject_id, text,
+  REGEXP_REPLACE(REGEXP_REPLACE(text,'\n',' '),'\r', '') AS text_fix 
+FROM
+  `physionet-data.mimiciii_notes.noteevents`
+WHERE
+  category = 'Radiology'
+  AND REGEXP_CONTAINS (description, '(?i)chest')) 
+
+SELECT n.hadm_id,n.subject_id,d.icustay_id
+FROM notes as n 
+LEFT JOIN  `physionet-data.mimiciii_clinical.datetimeevents` as d 
+ON n.subject_id = d.subject_id 
+and n.hadm_id = d.hadm_id 
+WHERE
+  REGEXP_CONTAINS (text_fix, r"(bilateral) [\w]* ?[\w]* ?.*(opaci|infil|haziness).*")
+  OR REGEXP_CONTAINS (text_fix, r"\.?([\w]*)[^no ].*(opaci|infil|hazy|haziness).*([\w ]+)bilaterally")
+GROUP BY n.hadm_id, n.subject_id, d.icustay_id
